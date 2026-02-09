@@ -1,0 +1,23 @@
+Project Name: EchoHunt
+Tagline: An AI-powered AR scavenger hunt using Gemini 3 vision.
+
+Description:
+EchoHunt is a zero-install, mobile-first web game that turns the real world into a playground. Using the Gemini 3 API, the app analyzes live camera frames to verify if the user has found the scavenger hunt items (e.g., "Find something red", "Find a reflective surface"). It features a custom AR-style overlay, Web Speech API integration for immersive audio feedback, and an "Auto Scan" mode powered by the low-latency capabilities of Gemini 3 Flash.
+
+How we used Gemini:
+- Model: gemini-3-flash-preview (default), gemini-3-pro-preview (optional).
+- Vision: Analyzes user-captured video frames.
+- Structured Data: Uses Gemini's JSON schema enforcement to control game state (searching vs success), confidence scores, and dynamic hints.
+- Latency: Optimized using low thinking budget configurations for real-time game feel.
+
+Tech Stack:
+- Next.js (App Router)
+- TypeScript
+- Tailwind CSS
+- Google GenAI SDK (@google/genai)
+- Vercel (Hosting)
+
+Instructions:
+1. Open the URL on a mobile device.
+2. Allow Camera permissions.
+3. Follow the spoken clues to find objects.

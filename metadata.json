@@ -1,0 +1,7 @@
+{
+  "name": "EchoHunt",
+  "description": "An AI-powered AR scavenger hunt using Gemini 3.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
