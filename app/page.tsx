@@ -64,15 +64,15 @@ export default function Home() {
     setLastScanTime(now);
 
     try {
-      // Capture frame
+      // Capture frame with optimized compression
       const offscreen = document.createElement('canvas');
-      offscreen.width = 512;
-      offscreen.height = 512 * (videoRef.current.videoHeight / videoRef.current.videoWidth);
+      offscreen.width = 384;
+      offscreen.height = 384 * (videoRef.current.videoHeight / videoRef.current.videoWidth);
       const ctx = offscreen.getContext('2d');
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0, offscreen.width, offscreen.height);
       }
-      const imageData = offscreen.toDataURL('image/jpeg', 0.6);
+      const imageData = offscreen.toDataURL('image/jpeg', 0.5);
 
       // Call API
       const res = await fetch('/api/scan', {
@@ -175,15 +175,15 @@ export default function Home() {
     setErrorMsg(null);
 
     try {
-      // Capture environment
+      // Capture environment with optimized compression
       const offscreen = document.createElement('canvas');
-      offscreen.width = 512;
-      offscreen.height = 512 * (videoRef.current.videoHeight / videoRef.current.videoWidth);
+      offscreen.width = 384;
+      offscreen.height = 384 * (videoRef.current.videoHeight / videoRef.current.videoWidth);
       const ctx = offscreen.getContext('2d');
       if (ctx) {
         ctx.drawImage(videoRef.current, 0, 0, offscreen.width, offscreen.height);
       }
-      const imageData = offscreen.toDataURL('image/jpeg', 0.7);
+      const imageData = offscreen.toDataURL('image/jpeg', 0.5);
 
       // Call API
       const res = await fetch('/api/generate-quest', {
@@ -406,20 +406,12 @@ export default function Home() {
 
         {/* Footer Controls */}
         <div className="w-full px-4 mb-10">
-          {/* Centered Layout - Auto Scan + Main Scan only */}
+          {/* Centered Layout - Main Scan only */}
           <div className="flex flex-col items-center gap-3">
-            {/* Auto Scan Toggle */}
-            <button 
-              onClick={() => setAutoScan(!autoScan)}
-              className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all shadow-lg whitespace-nowrap ${autoScan ? 'bg-brand-success text-brand-dark' : 'bg-gradient-to-r from-purple-500 to-brand-accent text-white'}`}
-            >
-              {autoScan ? '✓ Auto Scan ON' : 'Auto Scan'}
-            </button>
-
             {/* Main Scan Button */}
             <button
               onClick={performScan}
-              disabled={isScanning || autoScan}
+              disabled={isScanning}
               className={`
                 w-20 h-20 rounded-full border-4 flex items-center justify-center transition-all
                 ${isScanning 
