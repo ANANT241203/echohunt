@@ -102,10 +102,13 @@ export default function Home() {
             // Add small delay for confetti effect, then transition
             setTimeout(async () => {
               if (currentStepIndex < questSteps.length - 1) {
-                setCurrentStepIndex(prev => prev + 1);
+                const nextIndex = currentStepIndex + 1;
+                setCurrentStepIndex(nextIndex);
                 setOverlayMode('searching');
                 setFeedback("New clue active!");
                 await speak("Next clue unlocked.");
+                // Speak the new riddle
+                await speak(questSteps[nextIndex].description);
               } else {
                 setGamePhase('completed');
                 await speak("Quest completed! You are amazing.");
@@ -132,7 +135,7 @@ export default function Home() {
     if (autoScan && gamePhase === 'playing') {
       autoScanIntervalRef.current = setInterval(() => {
         performScan();
-      }, 1000);
+      }, 3000);
     } else {
       clearInterval(autoScanIntervalRef.current);
     }
@@ -357,7 +360,7 @@ export default function Home() {
       />
 
       {/* UI Overlay */}
-      <div className="absolute inset-0 z-20 flex flex-col justify-between p-4 safe-area-padding">
+      <div className="absolute inset-0 z-20 flex flex-col justify-between p-4 pb-20 safe-area-padding">
         
         {/* Header */}
         <div className="bg-black/60 backdrop-blur-md rounded-2xl p-4 border border-white/10">
@@ -402,18 +405,18 @@ export default function Home() {
         )}
 
         {/* Footer Controls */}
-        <div className="flex flex-col gap-4 items-center mb-8">
-          
-          {/* Main Action */}
-          <div className="flex items-center gap-6">
+        <div className="w-full px-4 mb-10">
+          {/* Centered Layout - Auto Scan + Main Scan only */}
+          <div className="flex flex-col items-center gap-3">
+            {/* Auto Scan Toggle */}
             <button 
-              onClick={() => speak(currentStep.description)}
-              className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center active:bg-white/20"
-              aria-label="Repeat Clue"
+              onClick={() => setAutoScan(!autoScan)}
+              className={`px-6 py-2.5 rounded-full text-sm font-bold transition-all shadow-lg whitespace-nowrap ${autoScan ? 'bg-brand-success text-brand-dark' : 'bg-gradient-to-r from-purple-500 to-brand-accent text-white'}`}
             >
-              <RefreshCw size={20} className="text-white" />
+              {autoScan ? '✓ Auto Scan ON' : 'Auto Scan'}
             </button>
 
+            {/* Main Scan Button */}
             <button
               onClick={performScan}
               disabled={isScanning || autoScan}
@@ -431,24 +434,7 @@ export default function Home() {
                 <div className="w-16 h-16 rounded-full bg-white/10" />
               )}
             </button>
-
-            <button 
-              onClick={handleSkip}
-              className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center active:bg-white/20"
-              aria-label="Skip Step"
-            >
-              <SkipForward size={20} className="text-white" />
-            </button>
           </div>
-
-          {/* Auto Toggle */}
-          <button 
-            onClick={() => setAutoScan(!autoScan)}
-            className={`px-4 py-2 rounded-full text-sm font-bold transition-colors flex items-center gap-2 ${autoScan ? 'bg-brand-success text-brand-dark' : 'bg-white/10 text-gray-300'}`}
-          >
-            {autoScan ? 'Auto Scan ON' : 'Enable Auto Scan'}
-          </button>
-
         </div>
       </div>
     </main>
