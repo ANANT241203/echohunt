@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     // Strip base64 prefix if present
     const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
 
-    const modelName = usePro ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
+    const modelName = usePro ? 'gemini-3-pro-preview' : 'gemini-2.5-flash-lite';
     
     // Schema definition using @google/generative-ai SchemaType
     const responseSchema = {
@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
       Analyze the image. 
       Is the item clearly visible and dominant?
       If matched, be congratulatory.
-      If not matched, provide a short hint based on visual feedback (e.g., "Too dark", "Get closer", "Not reflective enough").
+      If not matched, provide a short hint based on visual feedback.
       Return ONLY JSON.
     `;
 

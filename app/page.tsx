@@ -9,10 +9,12 @@ import Link from 'next/link';
 
 export default function Home() {
   // Game State
-  const [hasStarted, setHasStarted] = useState(false);
+  const [gamePhase, setGamePhase] = useState<'intro' | 'setup' | 'playing' | 'completed'>('intro');
+  const [questSteps, setQuestSteps] = useState<QuestStep[]>(QUEST_STEPS);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [isCompleted, setIsCompleted] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [numRiddles, setNumRiddles] = useState(3);
+  const [isGeneratingQuest, setIsGeneratingQuest] = useState(false);
 
   // Scanning State
   const [isScanning, setIsScanning] = useState(false);
@@ -24,7 +26,6 @@ export default function Home() {
 
   // Settings
   const [usePro, setUsePro] = useState(false);
-  const [questType, setQuestType] = useState<'Indoor' | 'Outdoor'>('Indoor');
   const [showSettings, setShowSettings] = useState(false);
 
   // Refs
@@ -33,16 +34,22 @@ export default function Home() {
   const animationRef = useRef<number>();
   const autoScanIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
-  const currentStep = QUEST_STEPS[currentStepIndex];
+  const currentStep = questSteps[currentStepIndex];
 
   // -- Speech Synthesis --
-  const speak = useCallback((text: string) => {
-    if (typeof window !== 'undefined' && window.speechSynthesis) {
-      window.speechSynthesis.cancel(); // Stop previous
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.1;
-      window.speechSynthesis.speak(utterance);
-    }
+  const speak = useCallback((text: string): Promise<void> => {
+    return new Promise((resolve) => {
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel(); // Stop previous
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 1.1;
+        utterance.onend = () => resolve();
+        utterance.onerror = () => resolve(); // Resolve even on error
+        window.speechSynthesis.speak(utterance);
+      } else {
+        resolve();
+      }
+    });
   }, []);
 
   // -- Capture & API Call --
@@ -88,21 +95,26 @@ export default function Home() {
       setFeedback(data.short_hint);
       
       if (data.matched) {
-        speak(data.voice_line);
         setParticles(createConfetti(window.innerWidth, window.innerHeight));
-        if (data.next_step_unlocked) {
-           setTimeout(() => {
-              if (currentStepIndex < QUEST_STEPS.length - 1) {
+        setAutoScan(false); // Pause auto-scan during transition
+        
+        // Wait for success voice to finish, then proceed
+        speak(data.voice_line).then(() => {
+          if (data.next_step_unlocked) {
+            // Add small delay for confetti effect, then transition
+            setTimeout(async () => {
+              if (currentStepIndex < questSteps.length - 1) {
                 setCurrentStepIndex(prev => prev + 1);
                 setOverlayMode('searching');
                 setFeedback("New clue active!");
-                speak("Next clue unlocked.");
+                await speak("Next clue unlocked.");
               } else {
-                setIsCompleted(true);
-                speak("Quest completed! You are amazing.");
+                setGamePhase('completed');
+                await speak("Quest completed! You are amazing.");
               }
-           }, 2000);
-        }
+            }, 1000);
+          }
+        });
       } else {
         // Only speak hint if manual scan or if feedback changes significantly (simplified here)
         if (!autoScan) speak(data.voice_line);
@@ -119,7 +131,7 @@ export default function Home() {
 
   // -- Auto Scan Loop --
   useEffect(() => {
-    if (autoScan && hasStarted && !isCompleted) {
+    if (autoScan && gamePhase === 'playing') {
       autoScanIntervalRef.current = setInterval(() => {
         performScan();
       }, 1000);
@@ -127,7 +139,7 @@ export default function Home() {
       clearInterval(autoScanIntervalRef.current);
     }
     return () => clearInterval(autoScanIntervalRef.current);
-  }, [autoScan, hasStarted, isCompleted, performScan]);
+  }, [autoScan, gamePhase, performScan]);
 
   // -- Animation Loop --
   useEffect(() => {
@@ -150,31 +162,78 @@ export default function Home() {
     return () => cancelAnimationFrame(animationRef.current!);
   }, [overlayMode, particles]);
 
-  // -- Start Game --
-  const handleStart = () => {
-    setHasStarted(true);
-    speak(`Welcome to Echo Hunt. First clue: ${currentStep.description}`);
-  };
+  // -- Generate Quest --
+  const handleGenerateQuest = async () => {
+    if (!videoRef.current) return;
+    if (videoRef.current.videoWidth === 0 || videoRef.current.videoHeight === 0) {
+      setErrorMsg("Camera not ready. Please wait...");
+      return;
+    }
 
-  const handleSkip = () => {
-    if (currentStepIndex < QUEST_STEPS.length - 1) {
-      setCurrentStepIndex(prev => prev + 1);
-      speak("Skipping step.");
-    } else {
-      setIsCompleted(true);
+    setIsGeneratingQuest(true);
+    setErrorMsg(null);
+
+    try {
+      // Capture environment
+      const offscreen = document.createElement('canvas');
+      offscreen.width = 512;
+      offscreen.height = 512 * (videoRef.current.videoHeight / videoRef.current.videoWidth);
+      const ctx = offscreen.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(videoRef.current, 0, 0, offscreen.width, offscreen.height);
+      }
+      const imageData = offscreen.toDataURL('image/jpeg', 0.7);
+
+      // Call API
+      const res = await fetch('/api/generate-quest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          image: imageData,
+          numRiddles,
+          usePro
+        })
+      });
+
+      if (!res.ok) throw new Error("Failed to generate quest");
+
+      const data = await res.json();
+      setQuestSteps(data.quest_steps);
+      setGamePhase('playing');
+      await speak(`Welcome to Echo Hunt. First clue: ${data.quest_steps[0].description}`);
+
+    } catch (err) {
+      console.error(err);
+      setErrorMsg("Failed to generate quest. Please try again.");
+    } finally {
+      setIsGeneratingQuest(false);
     }
   };
 
-  if (!hasStarted) {
+  // -- Start Game --
+  const handleStart = () => {
+    setGamePhase('setup');
+  };
+
+  const handleSkip = () => {
+    if (currentStepIndex < questSteps.length - 1) {
+      setCurrentStepIndex(prev => prev + 1);
+      speak("Skipping step.");
+    } else {
+      setGamePhase('completed');
+    }
+  };
+
+  if (gamePhase === 'intro') {
     return (
       <div className="min-h-screen bg-brand-dark flex flex-col items-center justify-center p-6 text-center">
         <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-purple-400 mb-4">
           EchoHunt
         </h1>
         <p className="text-gray-300 mb-8 max-w-md">
-          An AI-powered AR scavenger hunt. Find objects in the real world to progress.
+          An AI-powered AR scavenger hunt. The AI will analyze your environment and create a personalized treasure hunt just for you!
           <br/><br/>
-          Powered by Gemini 3.
+          Powered by Gemini AI.
         </p>
         <button 
           onClick={handleStart}
@@ -192,7 +251,103 @@ export default function Home() {
     );
   }
 
-  if (isCompleted) {
+  if (gamePhase === 'setup') {
+    return (
+      <main className="relative h-screen w-screen overflow-hidden bg-black">
+        {/* Background Camera */}
+        <CameraLayer 
+          onRef={(ref) => (videoRef.current = ref)} 
+          onError={setErrorMsg} 
+        />
+
+        {/* Setup Overlay */}
+        <div className="absolute inset-0 z-20 flex flex-col items-center justify-center p-6 bg-black/70">
+          <div className="bg-brand-dark/95 p-8 rounded-3xl border border-white/20 max-w-md w-full text-center">
+            <h2 className="text-3xl font-bold text-white mb-4">Setup Your Quest</h2>
+            <p className="text-gray-300 mb-6">
+              Point your camera around the room. The AI will analyze your environment and create personalized riddles!
+            </p>
+            
+            <div className="mb-6">
+              <label className="text-gray-400 block mb-3 font-bold">Number of Riddles</label>
+              <div className="flex items-center justify-center gap-4">
+                <button 
+                  onClick={() => setNumRiddles(Math.max(3, numRiddles - 1))}
+                  className="w-12 h-12 rounded-full bg-white/10 text-white text-2xl font-bold hover:bg-white/20"
+                  disabled={numRiddles <= 3}
+                >
+                  -
+                </button>
+                <span className="text-5xl font-bold text-brand-accent w-16">{numRiddles}</span>
+                <button 
+                  onClick={() => setNumRiddles(Math.min(10, numRiddles + 1))}
+                  className="w-12 h-12 rounded-full bg-white/10 text-white text-2xl font-bold hover:bg-white/20"
+                  disabled={numRiddles >= 10}
+                >
+                  +
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">Min: 3 | Max: 10</p>
+            </div>
+
+            <div className="mb-6">
+              <label className="text-gray-400 block mb-2">AI Model</label>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setUsePro(false)}
+                  className={`flex-1 p-3 rounded-xl border ${!usePro ? 'border-brand-accent bg-brand-accent/20 text-white' : 'border-gray-600 text-gray-400'}`}
+                >
+                  <div className="font-bold">Flash</div>
+                  <div className="text-xs">Fast & Free</div>
+                </button>
+                <button 
+                  onClick={() => setUsePro(true)}
+                  className={`flex-1 p-3 rounded-xl border ${usePro ? 'border-purple-400 bg-purple-500/20 text-white' : 'border-gray-600 text-gray-400'}`}
+                >
+                  <div className="font-bold">Pro</div>
+                  <div className="text-xs">Smarter</div>
+                </button>
+              </div>
+            </div>
+
+            {errorMsg && (
+              <div className="bg-red-500/90 text-white p-3 rounded-lg mb-4 text-sm">
+                {errorMsg}
+              </div>
+            )}
+
+            <button
+              onClick={handleGenerateQuest}
+              disabled={isGeneratingQuest}
+              className={`w-full py-4 rounded-full font-bold text-lg transition-all ${
+                isGeneratingQuest 
+                  ? 'bg-gray-600 text-gray-400 cursor-not-allowed' 
+                  : 'bg-brand-accent text-brand-dark hover:scale-105 shadow-lg'
+              }`}
+            >
+              {isGeneratingQuest ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-5 h-5 border-2 border-brand-dark border-t-transparent rounded-full animate-spin" />
+                  Generating Quest...
+                </span>
+              ) : (
+                'Generate Quest!'
+              )}
+            </button>
+
+            <button
+              onClick={() => setGamePhase('intro')}
+              className="mt-4 text-gray-400 underline text-sm"
+            >
+              ← Back
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (gamePhase === 'completed') {
     return (
       <div className="min-h-screen bg-brand-dark flex flex-col items-center justify-center text-center p-6">
         <h1 className="text-4xl text-brand-success font-bold mb-4">Quest Complete!</h1>
@@ -231,7 +386,7 @@ export default function Home() {
         <div className="bg-black/60 backdrop-blur-md rounded-2xl p-4 border border-white/10">
           <div className="flex justify-between items-center mb-2">
             <span className="text-xs font-mono text-brand-accent uppercase tracking-widest">
-              Step {currentStep.id}/{QUEST_STEPS.length}
+              Step {currentStep.id}/{questSteps.length}
             </span>
             <button onClick={() => setShowSettings(!showSettings)} className="p-2 bg-white/10 rounded-full">
               <Settings size={20} className="text-white" />
@@ -250,39 +405,14 @@ export default function Home() {
         {showSettings && (
           <div className="absolute top-24 right-4 bg-brand-dark/90 p-4 rounded-xl border border-white/20 w-64 text-sm">
              <div className="mb-4">
-               <label className="text-gray-400 block mb-1">Quest Type</label>
-               <div className="flex bg-black/40 rounded p-1">
-                 <button 
-                  onClick={() => setQuestType('Indoor')}
-                  className={`flex-1 py-1 rounded ${questType === 'Indoor' ? 'bg-brand-accent text-brand-dark' : 'text-gray-400'}`}
-                 >Indoor</button>
-                 <button 
-                  onClick={() => setQuestType('Outdoor')}
-                  className={`flex-1 py-1 rounded ${questType === 'Outdoor' ? 'bg-brand-accent text-brand-dark' : 'text-gray-400'}`}
-                 >Outdoor</button>
-               </div>
-             </div>
-             <div className="mb-4">
-               <label className="text-gray-400 block mb-1">AI Model</label>
-               <div className="flex flex-col gap-2">
-                  <button onClick={() => setUsePro(false)} className={`flex items-center gap-2 p-2 rounded border ${!usePro ? 'border-brand-accent bg-brand-accent/20' : 'border-transparent'}`}>
-                    <div className={`w-3 h-3 rounded-full ${!usePro ? 'bg-brand-accent' : 'bg-gray-600'}`} />
-                    <div className="text-left">
-                      <div className="font-bold text-white">Gemini 3 Flash</div>
-                      <div className="text-xs text-gray-400">Fast, Free</div>
-                    </div>
-                  </button>
-                  <button onClick={() => setUsePro(true)} className={`flex items-center gap-2 p-2 rounded border ${usePro ? 'border-purple-400 bg-purple-500/20' : 'border-transparent'}`}>
-                    <div className={`w-3 h-3 rounded-full ${usePro ? 'bg-purple-400' : 'bg-gray-600'}`} />
-                    <div className="text-left">
-                      <div className="font-bold text-white">Gemini 3 Pro</div>
-                      <div className="text-xs text-gray-400">Paid, Higher IQ</div>
-                    </div>
-                  </button>
+               <label className="text-gray-400 block mb-2 font-bold">Quest Info</label>
+               <div className="bg-black/40 p-3 rounded">
+                 <div className="text-white font-bold">{questSteps.length} Riddles</div>
+                 <div className="text-xs text-gray-400 mt-1">AI-generated for your space</div>
                </div>
              </div>
              <div className="text-xs text-gray-500 border-t border-white/10 pt-2">
-               Privacy: Images are analyzed by Google Gemini and discarded immediately.
+               Privacy: Images are analyzed by Gemini AI and discarded immediately.
              </div>
           </div>
         )}

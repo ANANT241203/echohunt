@@ -1,12 +1,34 @@
-# EchoHunt - Gemini 3 Hackathon Project
+# EchoHunt - AI-Generated Scavenger Hunts
 
-**EchoHunt** is a browser-based, mobile-first AR scavenger hunt game. It uses the **Gemini 3 API** (specifically `gemini-3-flash-preview`) to "see" the world through your camera and verify if you have found the quest items.
+**EchoHunt** is a browser-based, mobile-first AR scavenger hunt game that creates **personalized quests using Gemini AI**. Unlike traditional scavenger hunts with fixed riddles, EchoHunt analyzes your environment and generates custom riddles tailored to YOUR space!
 
 ## 🎮 Features
-- **Visual Intelligence**: Uses Gemini 3 Vision to analyze camera frames in real-time.
-- **Zero App Store**: Works entirely in the mobile browser (PWA ready).
-- **Voice Feedback**: Browser-native Text-to-Speech reads clues and hints.
-- **Auto Scan Mode**: Optional mode that uses Gemini's low-latency thinking config to scan continuously.
+- **🤖 AI-Generated Quests**: Gemini analyzes your room/space and creates 3-10 personalized riddles based on what it sees
+- **👁️ Visual Intelligence**: Real-time camera frame analysis validates if you found the correct object
+- **📱 Zero App Store**: Works entirely in the mobile browser (PWA ready)
+- **🗣️ Voice Feedback**: Browser-native Text-to-Speech provides clues and encouraging hints
+- **⚡ Auto Scan Mode**: Continuous scanning for a hands-free experience
+- **🎨 AR Overlay**: Animated reticles and confetti celebrations
+
+## 🎯 How It Works
+
+1. **Setup Phase**: 
+   - Point your camera around your space (bedroom, office, classroom, etc.)
+   - Choose 3-10 riddles
+   - Gemini AI analyzes your environment
+   
+2. **Quest Generation**: 
+   - AI identifies objects, colors, textures in your space
+   - Generates personalized riddles ordered by difficulty
+   - Creates unique clues like "Find something reflective" based on what it saw
+   
+3. **Gameplay**: 
+   - Follow the riddles to find objects
+   - Scan objects with your camera
+   - Get real-time AI feedback ("Get closer!", "Too dark!")
+   - Celebrate with confetti when successful!
+
+Every quest is 100% unique to your environment!
 
 ## 🚀 Quick Start (Local)
 
@@ -44,11 +66,14 @@ This project is optimized for Vercel's zero-config deployment.
 5. **Test**: Open the provided URL on your smartphone.
 
 ## 🛠 Tech Stack
-- **Framework**: Next.js 14 (App Router)
-- **AI Model**: Google Gemini 3 Flash Preview
+- **Framework**: Next.js 16 (App Router with Turbopack)
+- **AI Models**: 
+  - Gemini 3 Flash (quest generation & validation)
+  - Gemini 3 Pro (optional, for enhanced intelligence)
 - **SDK**: `@google/generative-ai`
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
+- **APIs**: MediaDevices (camera), Canvas (frame capture), Web Speech (TTS)
 
 ## 📄 License
 MIT License

@@ -25,3 +25,10 @@ body {
   overflow-y: auto;
   touch-action: pan-y;
 }
+
+/* Hide Next.js dev console button */
+#nextjs__container_errors_label,
+#nextjs__container_build_error_label,
+nextjs-portal {
+  display: none !important;
+}
