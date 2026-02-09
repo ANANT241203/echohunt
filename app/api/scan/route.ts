@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
+import { GEMINI_MODEL } from '../../config';
 
 // Initialize Gemini Client
 const apiKey = process.env.GEMINI_API_KEY;
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { image, stepTarget, usePro } = await req.json();
+    const { image, stepTarget } = await req.json();
 
     if (!image || !stepTarget) {
       return NextResponse.json({ error: "Missing image or target" }, { status: 400 });
@@ -22,8 +23,6 @@ export async function POST(req: NextRequest) {
 
     // Strip base64 prefix if present
     const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
-
-    const modelName = usePro ? 'gemini-3-pro-preview' : 'gemini-2.5-flash-lite';
     
     // Schema definition using @google/generative-ai SchemaType
     const responseSchema = {
@@ -53,7 +52,7 @@ export async function POST(req: NextRequest) {
     `;
 
     const model = genAI.getGenerativeModel({ 
-      model: modelName,
+      model: GEMINI_MODEL,
       generationConfig: {
         responseMimeType: 'application/json',
         responseSchema: responseSchema,

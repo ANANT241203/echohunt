@@ -25,7 +25,6 @@ export default function Home() {
   const [particles, setParticles] = useState<Point[]>([]);
 
   // Settings
-  const [usePro, setUsePro] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
   // Refs
@@ -81,8 +80,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           image: imageData,
-          stepTarget: currentStep.target,
-          usePro
+          stepTarget: currentStep.target
         })
       });
 
@@ -127,7 +125,7 @@ export default function Home() {
     } finally {
       setIsScanning(false);
     }
-  }, [currentStep, isScanning, lastScanTime, usePro, autoScan, currentStepIndex, speak]);
+  }, [currentStep, isScanning, lastScanTime, autoScan, currentStepIndex, speak]);
 
   // -- Auto Scan Loop --
   useEffect(() => {
@@ -190,8 +188,7 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           image: imageData,
-          numRiddles,
-          usePro
+          numRiddles
         })
       });
 
@@ -288,26 +285,6 @@ export default function Home() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-2">Min: 3 | Max: 10</p>
-            </div>
-
-            <div className="mb-6">
-              <label className="text-gray-400 block mb-2">AI Model</label>
-              <div className="flex gap-2">
-                <button 
-                  onClick={() => setUsePro(false)}
-                  className={`flex-1 p-3 rounded-xl border ${!usePro ? 'border-brand-accent bg-brand-accent/20 text-white' : 'border-gray-600 text-gray-400'}`}
-                >
-                  <div className="font-bold">Flash</div>
-                  <div className="text-xs">Fast & Free</div>
-                </button>
-                <button 
-                  onClick={() => setUsePro(true)}
-                  className={`flex-1 p-3 rounded-xl border ${usePro ? 'border-purple-400 bg-purple-500/20 text-white' : 'border-gray-600 text-gray-400'}`}
-                >
-                  <div className="font-bold">Pro</div>
-                  <div className="text-xs">Smarter</div>
-                </button>
-              </div>
             </div>
 
             {errorMsg && (
