@@ -46,7 +46,7 @@ This project is optimized for Vercel's zero-config deployment.
 ## 🛠 Tech Stack
 - **Framework**: Next.js 14 (App Router)
 - **AI Model**: Google Gemini 3 Flash Preview
-- **SDK**: `@google/genai`
+- **SDK**: `@google/generative-ai`
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
 

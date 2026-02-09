@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
 
 // Initialize Gemini Client
 const apiKey = process.env.GEMINI_API_KEY;
-const ai = new GoogleGenAI({ apiKey: apiKey || '' });
+const genAI = new GoogleGenerativeAI(apiKey || '');
 
 export async function POST(req: NextRequest) {
   if (!apiKey) {
@@ -25,19 +25,19 @@ export async function POST(req: NextRequest) {
 
     const modelName = usePro ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
     
-    // Schema definition using @google/genai Type
+    // Schema definition using @google/generative-ai SchemaType
     const responseSchema = {
-      type: Type.OBJECT,
+      type: SchemaType.OBJECT,
       properties: {
-        matched: { type: Type.BOOLEAN },
-        confidence: { type: Type.NUMBER, description: "Confidence score between 0 and 1" },
-        short_hint: { type: Type.STRING, description: "A very short directional hint (max 4 words)" },
-        voice_line: { type: Type.STRING, description: "Spoken feedback for the user" },
+        matched: { type: SchemaType.BOOLEAN },
+        confidence: { type: SchemaType.NUMBER, description: "Confidence score between 0 and 1" },
+        short_hint: { type: SchemaType.STRING, description: "A very short directional hint (max 4 words)" },
+        voice_line: { type: SchemaType.STRING, description: "Spoken feedback for the user" },
         overlay_mode: { 
-          type: Type.STRING, 
+          type: SchemaType.STRING, 
           enum: ['searching', 'almost', 'success']
         },
-        next_step_unlocked: { type: Type.BOOLEAN }
+        next_step_unlocked: { type: SchemaType.BOOLEAN }
       },
       required: ["matched", "confidence", "short_hint", "voice_line", "overlay_mode", "next_step_unlocked"]
     };
@@ -52,22 +52,21 @@ export async function POST(req: NextRequest) {
       Return ONLY JSON.
     `;
 
-    const response = await ai.models.generateContent({
+    const model = genAI.getGenerativeModel({ 
       model: modelName,
-      contents: {
-        parts: [
-          { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
-          { text: prompt }
-        ]
-      },
-      config: {
+      generationConfig: {
         responseMimeType: 'application/json',
         responseSchema: responseSchema,
-        thinkingConfig: { thinkingBudget: 128 }, // Minimal budget for low latency
       }
     });
 
-    const jsonText = response.text;
+    const result = await model.generateContent([
+      { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
+      { text: prompt }
+    ]);
+
+    const response = result.response;
+    const jsonText = response.text();
     if (!jsonText) {
        throw new Error("Empty response from Gemini");
     }
